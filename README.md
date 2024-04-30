@@ -1,0 +1,2 @@
+
+We want to use local pairwise profile sequence alignment on several different bacterial strains that are resistant to a particular family of antibiotics. We want to find a consensus sequence from the profile that could be attributed to their antibiotic resistance to that certain family of antibiotics. We plan to use a section of each of the bacterial genomes that seem like the most interesting sections of the genome to further analyze. Datasets could potentially be found from reading literature that has either accomplished this or something similar. 
