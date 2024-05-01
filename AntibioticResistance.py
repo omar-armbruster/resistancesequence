@@ -112,6 +112,7 @@ if __name__ == "__main__":
     print(profile)
 
 
+print(substitution_matrices.load("PAM250"))
 
 
 # if __name__ == "__main__":
