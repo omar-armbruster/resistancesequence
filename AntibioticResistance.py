@@ -2,10 +2,33 @@ import numpy as np
 import sys
 from Bio.Align import substitution_matrices
 
+amino_acids = "ACDEFGHIKLMNPQRSTVWY-"
+
 def create_scoring_matrix(m, n, sigma):
     # Make all nodes 0 b/c local alignment can start from anywhere
     return np.zeros((m+1, n+1), dtype=int)
 
+def create_profile(strings, symbols):
+    prof = np.zeros((len(symbols), len(strings[0])))
+    for string in strings:
+        for i in range(len(string)):
+            prof[symbols.index(string[i])][i] += 1
+    #norm = np.sum(prof, axis = 0)[0]
+    return prof 
+
+def calculate_match(x, y, scoring_matrix, i, j, sigma):
+    total = 0
+    x = x/np.sum(x, axis = 0)[0]
+    y = y/np.sum(y, axis = 0)[0]
+    for k in range(len(x)):
+        for l in range(len(x)):
+            if amino_acids[k] == "-" or amino_acids[j] == "-":
+                score = sigma
+            else:
+                score = scoring_matrix[(amino_acids[k], amino_acids[l])] 
+            #Probably add 1 back to i and j. Quick fix for index error but we don't know why.
+            total += score * x[k][i] * y[l][j]
+    return total
 
 def fill_scoring_matrix(x, y, S, sigma, scoring_matrix):
     # Fill scoring matrix
@@ -18,7 +41,7 @@ def fill_scoring_matrix(x, y, S, sigma, scoring_matrix):
             #scores for possible alignments
             insert = S[i, j-1] - sigma
             delete = S[i-1, j] - sigma
-            match = S[i-1, j-1] + scoring_matrix[(x[i-1], y[j-1])]
+            match = S[i-1, j-1] + calculate_match(x, y, scoring_matrix, i-1, j-1, sigma)
 
             S[i, j] = max(match, delete, insert, 0) #recurrence relation
 
@@ -36,31 +59,43 @@ def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
     i, j = start_pos  # Start backtracking from the position of the max score
 
     # Backtrack until reaching a cell with score 0 (sigals end of local alignment)
+    xcopy = np.zeros((len(x), len(x[0])))
+    ycopy = np.zeros((len(y), len(y[0])))
     while i > 0 and j > 0 and S[i, j] > 0:
-        if S[i, j] == S[i-1, j-1] + scoring_matrix[(x[i-1], y[j-1])]:
+        if S[i, j] == S[i-1, j-1] + calculate_match(x, y, scoring_matrix, i, j, sigma):
             # Diagonal: match/mismatch
-            X_align = x[i-1] + X_align
-            Y_align = y[j-1] + Y_align
+            #X_align = x[i-1] + X_align
+            #Y_align = y[j-1] + Y_align
+            xcopy[:, i] = x[:, i]
+            ycopy[:, j] = y[:, j]
             i -= 1
             j -= 1
         elif S[i, j] == S[i, j-1] - sigma:
             #Left: insertion
-            X_align = "-" + X_align
-            Y_align = y[j-1] + Y_align
+            ins = np.zeros(len(amino_acids))
+            ins[-1] = 1
+            xcopy = np.insert(x, i - 1, ins, axis=1)
+            ycopy[:, j] = y[:, j]
+            #X_align = "-" + X_align
+            #Y_align = y[j-1] + Y_align
             j -= 1
         else: # S[i, j] == S[i-1, j] - sigma:
             #Up: deletion
-            X_align = x[i-1] + X_align
-            Y_align = "-" + Y_align
+            # X_align = x[i-1] + X_align
+            # Y_align = "-" + Y_align
+            ins = np.zeros(len(amino_acids))
+            ins[-1] = 1
+            xcopy[:, i] = x[:, i]
+            ycopy = np.insert(x, j - 1, ins, axis=1)
             i -= 1
-
-    return X_align, Y_align
+    final = xcopy + ycopy
+    return final
 
 
 def local_alignment(x, y, sigma=5):
     #Perform local alignment using PAM250 scoring matrix
     scoring_matrix = substitution_matrices.load("PAM250")
-    m, n = len(x), len(y)
+    m, n = len(x[0]), len(y[0])
 
     S = create_scoring_matrix(m, n, sigma)
     S, max_score, max_pos = fill_scoring_matrix(x, y, S, sigma, scoring_matrix)
@@ -94,7 +129,6 @@ def pairwiseAlign(genomes):
 def createProfile(alignment):
     x = alignment[1]
     y = alignment[2]
-    amino_acids = "ACDEFGHIKLMNPQRSTVWY"
     prof = np.zeros((len(amino_acids), len(x)))
     for i in range(len(x)):
         if x[i] == y[i]:
@@ -112,7 +146,6 @@ if __name__ == "__main__":
     print(profile)
 
 
-print(substitution_matrices.load("PAM250"))
 
 
 # if __name__ == "__main__":
