@@ -21,7 +21,7 @@ def calculate_match(x, y, scoring_matrix, i, j, sigma):
     x = x/np.sum(x, axis = 0)[0]
     y = y/np.sum(y, axis = 0)[0]
     for k in range(len(x)):
-        for l in range(len(x)):
+        for l in range(len(y)):
             if amino_acids[k] == "-" or amino_acids[l] == "-":
                 score = sigma
             else:
@@ -55,14 +55,14 @@ def fill_scoring_matrix(x, y, S, sigma, scoring_matrix):
 
 def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
     #Backtrack to find optimal local alignment
-    X_align, Y_align = "", ""  # Initialize aligned strings
     i, j = start_pos  # Start backtracking from the position of the max score
-
+    i -= 1
+    j -= 1
     # Backtrack until reaching a cell with score 0 (sigals end of local alignment)
     xcopy = np.zeros((len(x), len(x[0])))
     ycopy = np.zeros((len(y), len(y[0])))
     while i > 0 and j > 0 and S[i, j] > 0:
-        if S[i, j] == S[i-1, j-1] + calculate_match(x, y, scoring_matrix, i, j, sigma):
+        if S[i, j] == S[i-1, j-1] + calculate_match(x, y, scoring_matrix, i-1, j-1, sigma):
             # Diagonal: match/mismatch
             #X_align = x[i-1] + X_align
             #Y_align = y[j-1] + Y_align
@@ -103,29 +103,32 @@ def local_alignment(x, y, sigma=5):
     final = backtrack(S, x, y, max_pos, sigma, scoring_matrix)
 
 
-    return max_score, final
+    return max_score, final, x, y
 
 
-# def parse_file(filename):
-#     sequences = []
-#     with open(filename, 'r') as file:
-#         for line in file:
-#             sequence = line.strip()
-#             sequences.append(sequence)
-#     return sequences
 
 
 def pairwiseAlign(genomes):
     #Aligns each genome with all of the other genomes. Puts them in list rank and then sorts
     #based on the max score. List is returned with elements of [score, xalign, yalign]
-    rank = []
-    for i in range((len(genomes))):
-        for j in range(i+1, len(genomes)):
-          align = local_alignment(genomes[i], genomes[j], 5)
-          rank.append(align)
-    rank = sorted(rank, key=lambda x : x[0], reverse = True)
-    return rank
+    genomeprof = []
+    for seq in genomes:
+        genomeprof.append(create_profile([seq], amino_acids))
+    while len(genomeprof) > 0: 
+        rank = []    
+        for i in range((len(genomeprof))):
+            for j in range(i+1, len(genomeprof)):
+                align = local_alignment(genomeprof[i], genomeprof[j], 5)
+                rank.append(align)
+        rank = sorted(rank, key=lambda x : x[0], reverse = True)
+        x, y = rank[0][2], rank[0][3]
+        genomeprof.pop(genomeprof.index(x))
+        genomeprof.pop(genomeprof.index(y))
+        genomeprof.append(rank[0][1])
+    return genomeprof[0]
 
+
+#Not sure if we still need this function? See create_profile()
 def createProfile(alignment):
     x = alignment[1]
     y = alignment[2]
@@ -160,9 +163,10 @@ def createProfile(alignment):
 
 
 scoring_matrix = substitution_matrices.load("PAM250")
-strings1 = ["ACGTCAG", "TCAGTCG"]
-strings2 = ["ATGCGCT", "CTGCGCT"]
-prof1 = create_profile(strings1, "ACDEFGHIKLMNPQRSTVWY-")
-prof2 = create_profile(strings2, "ACDEFGHIKLMNPQRSTVWY-")
-
-#print(calculate_match(prof1, prof2, scoring_matrix, 0, 0, 5))
+seq = ["MKTIIALSYIFCLV","TIIALSYIFCLVFA","ALSYIFCLVFADYK","CLVFADYKDDDDK","IFCLVFADY","SYIFCLVFA"]
+# strings1 = ["ACGTCAG", "TCAGTCG"]
+# strings2 = ["ATGCGCT", "CTGCGCT"]
+# strings3 = [""]
+# prof1 = create_profile(strings1, "ACDEFGHIKLMNPQRSTVWY-")
+# prof2 = create_profile(strings2, "ACDEFGHIKLMNPQRSTVWY-")
+print(pairwiseAlign(seq))
