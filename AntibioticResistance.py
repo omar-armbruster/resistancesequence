@@ -22,7 +22,7 @@ def calculate_match(x, y, scoring_matrix, i, j, sigma):
     y = y/np.sum(y, axis = 0)[0]
     for k in range(len(x)):
         for l in range(len(x)):
-            if amino_acids[k] == "-" or amino_acids[j] == "-":
+            if amino_acids[k] == "-" or amino_acids[l] == "-":
                 score = sigma
             else:
                 score = scoring_matrix[(amino_acids[k], amino_acids[l])] 
@@ -32,7 +32,7 @@ def calculate_match(x, y, scoring_matrix, i, j, sigma):
 
 def fill_scoring_matrix(x, y, S, sigma, scoring_matrix):
     # Fill scoring matrix
-    m, n = len(x), len(y)
+    m, n = len(x[0]), len(y[0])
     max_score = 0
     max_pos = (0, 0)
 
@@ -86,7 +86,7 @@ def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
             ins = np.zeros(len(amino_acids))
             ins[-1] = 1
             xcopy[:, i] = x[:, i]
-            ycopy = np.insert(x, j - 1, ins, axis=1)
+            ycopy = np.insert(y, j - 1, ins, axis=1)
             i -= 1
     final = xcopy + ycopy
     return final
@@ -100,10 +100,10 @@ def local_alignment(x, y, sigma=5):
     S = create_scoring_matrix(m, n, sigma)
     S, max_score, max_pos = fill_scoring_matrix(x, y, S, sigma, scoring_matrix)
 
-    X_align, Y_align = backtrack(S, x, y, max_pos, sigma, scoring_matrix)
+    final = backtrack(S, x, y, max_pos, sigma, scoring_matrix)
 
 
-    return max_score, X_align, Y_align
+    return max_score, final
 
 
 # def parse_file(filename):
@@ -138,12 +138,12 @@ def createProfile(alignment):
     
     
 
-if __name__ == "__main__":
-    sequences = ["MKTIIALSYIFCLV","TIIALSYIFCLVFA","ALSYIFCLVFADYK","CLVFADYKDDDDK","IFCLVFADY","SYIFCLVFA"]
-    all_alignments = pairwiseAlign(sequences)
-    two_seq = all_alignments[0]
-    profile = createProfile(two_seq)
-    print(profile)
+# if __name__ == "__main__":
+#     sequences = ["MKTIIALSYIFCLV","TIIALSYIFCLVFA","ALSYIFCLVFADYK","CLVFADYKDDDDK","IFCLVFADY","SYIFCLVFA"]
+#     all_alignments = pairwiseAlign(sequences)
+#     two_seq = all_alignments[0]
+#     profile = createProfile(two_seq)
+#     print(profile)
 
 
 
@@ -157,3 +157,12 @@ if __name__ == "__main__":
 #     print(max_score)
 #     print(X_align)
 #     print(Y_align)
+
+
+scoring_matrix = substitution_matrices.load("PAM250")
+strings1 = ["ACGTCAG", "TCAGTCG"]
+strings2 = ["ATGCGCT", "CTGCGCT"]
+prof1 = create_profile(strings1, "ACDEFGHIKLMNPQRSTVWY-")
+prof2 = create_profile(strings2, "ACDEFGHIKLMNPQRSTVWY-")
+
+#print(calculate_match(prof1, prof2, scoring_matrix, 0, 0, 5))
