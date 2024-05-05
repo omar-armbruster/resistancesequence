@@ -59,25 +59,25 @@ def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
     i -= 1
     j -= 1
     # Backtrack until reaching a cell with score 0 (sigals end of local alignment)
-    xcopy = np.zeros((len(x), len(x[0])))
-    ycopy = np.zeros((len(y), len(y[0])))
+    #xcopy = np.zeros((len(x), len(x[0])))
+    #ycopy = np.zeros((len(y), len(y[0])))
+    xcopy = np.zeros((len(amino_acids), 0))
+    ycopy = np.zeros((len(amino_acids), 0))
     while i > 0 and j > 0 and S[i, j] > 0:
         if S[i, j] == S[i-1, j-1] + calculate_match(x, y, scoring_matrix, i-1, j-1, sigma):
             # Diagonal: match/mismatch
             #X_align = x[i-1] + X_align
             #Y_align = y[j-1] + Y_align
-            xcopy[:, i] = x[:, i]
-            ycopy[:, j] = y[:, j]
+            xcopy = np.insert(xcopy, 0, x[:,i], axis=1)
+            ycopy = np.insert(ycopy, 0, y[:,j], axis=1)
             i -= 1
             j -= 1
         elif S[i, j] == S[i, j-1] - sigma:
             #Left: insertion
             ins = np.zeros(len(amino_acids))
             ins[-1] = 1
-            xcopy = np.insert(x, i - 1, ins, axis=1)
-            ycopy[:, j] = y[:, j]
-            #X_align = "-" + X_align
-            #Y_align = y[j-1] + Y_align
+            xcopy = np.insert(xcopy, 0, ins, axis=1)
+            ycopy = np.insert(ycopy, 0, y[:,j], axis=1)
             j -= 1
         else: # S[i, j] == S[i-1, j] - sigma:
             #Up: deletion
@@ -85,8 +85,10 @@ def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
             # Y_align = "-" + Y_align
             ins = np.zeros(len(amino_acids))
             ins[-1] = 1
-            xcopy[:, i] = x[:, i]
-            ycopy = np.insert(y, j - 1, ins, axis=1)
+            xcopy = np.insert(xcopy, 0, x[:,i], axis=1)
+            ycopy = np.insert(ycopy, 0, ins, axis=1)
+            # xcopy[:, i] = x[:, i]
+            # ycopy = np.insert(y, j - 1, ins, axis=1)
             i -= 1
     final = xcopy + ycopy
     return final
@@ -122,8 +124,12 @@ def pairwiseAlign(genomes):
                 rank.append(align)
         rank = sorted(rank, key=lambda x : x[0], reverse = True)
         x, y = rank[0][2], rank[0][3]
-        genomeprof.pop(genomeprof.index(x))
-        genomeprof.pop(genomeprof.index(y))
+        #genomeprof.pop(genomeprof.index(x))
+        #genomeprof.remove(x)
+        #genomeprof.remove(y)
+        genomeprof2 = [arr for arr in genomeprof if not (np.equal(x, arr).all() or np.equal(y, arr).all())]
+        #genomeprof.pop(genomeprof.index(y))
+        genomeprof = genomeprof2
         genomeprof.append(rank[0][1])
     return genomeprof[0]
 
