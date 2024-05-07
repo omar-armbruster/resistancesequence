@@ -4,6 +4,13 @@ from Bio.Align import substitution_matrices
 
 amino_acids = "ACDEFGHIKLMNPQRSTVWY-"
 
+def convertdict(mat, string):
+    scor_mat = {}
+    for i in range(len(string)):
+        for j in range(len(string)):
+            scor_mat[(string[i], string[j])] = mat[string[i], string[j]]
+    return scor_mat
+
 def create_scoring_matrix(m, n, sigma):
     # Make all nodes 0 b/c local alignment can start from anywhere
     return np.zeros((m+1, n+1), dtype=int)
@@ -97,6 +104,7 @@ def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
 def local_alignment(x, y, sigma=5):
     #Perform local alignment using PAM250 scoring matrix
     scoring_matrix = substitution_matrices.load("PAM250")
+    scoring_matrix = convertdict(scoring_matrix, amino_acids[:-1])
     m, n = len(x[0]), len(y[0])
 
     S = create_scoring_matrix(m, n, sigma)
@@ -128,7 +136,17 @@ def pairwiseAlign(genomes):
         #genomeprof.pop(genomeprof.index(y))
         genomeprof = genomeprof2
         genomeprof.append(rank[0][1])
-    return genomeprof[0]
+    fin = genomeprof[0]/np.sum(genomeprof[0], axis = 0)[0]
+    max = fin.max(axis = 0)
+    string = ''
+    for i in max:
+        if i == 1:
+            string += "f"
+        elif i > 0.5:
+            string += "c"
+        else:
+            string += "-"
+    return string
 
 
 #Not sure if we still need this function? See create_profile()
@@ -142,27 +160,10 @@ def createProfile(alignment):
     
     return prof
     
-    
-
-# if __name__ == "__main__":
-#     sequences = ["MKTIIALSYIFCLV","TIIALSYIFCLVFA","ALSYIFCLVFADYK","CLVFADYKDDDDK","IFCLVFADY","SYIFCLVFA"]
-#     all_alignments = pairwiseAlign(sequences)
-#     two_seq = all_alignments[0]
-#     profile = createProfile(two_seq)
-#     print(profile)
 
 
 
 
-# if __name__ == "__main__":
-#     filename = sys.argv[1]
-#     sequences = parse_file(filename)
-#     x = sequences[0]
-#     y = sequences[1]
-#     max_score, X_align, Y_align = local_alignment(x, y)
-#     print(max_score)
-#     print(X_align)
-#     print(Y_align)
 
 
 scoring_matrix = substitution_matrices.load("PAM250")
@@ -175,4 +176,12 @@ seq = ["MKTIIALSYIFCLVCLV","TIIALSYIFCLVCLVFA","ALSYIFCLVCLVFADYK","CLVCLVFADYKD
 # strings3 = [""]
 # prof1 = create_profile(strings1, "ACDEFGHIKLMNPQRSTVWY-")
 # prof2 = create_profile(strings2, "ACDEFGHIKLMNPQRSTVWY-")
+
+
 print(pairwiseAlign(seq))
+#print({scoring_matrix})
+
+
+
+#print(convertdict(scoring_matrix, amino_acids[:-1]))
+
