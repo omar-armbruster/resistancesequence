@@ -4,6 +4,13 @@ from Bio.Align import substitution_matrices
 
 amino_acids = "ACDEFGHIKLMNPQRSTVWY-"
 
+def convertdict(mat, string):
+    scor_mat = {}
+    for i in range(len(string)):
+        for j in range(len(string)):
+            scor_mat[(string[i], string[j])] = mat[string[i], string[j]]
+    return scor_mat
+
 def create_scoring_matrix(m, n, sigma):
     # Make all nodes 0 b/c local alignment can start from anywhere
     return np.zeros((m+1, n+1), dtype=int)
@@ -21,7 +28,7 @@ def calculate_match(x, y, scoring_matrix, i, j, sigma):
     x = x/np.sum(x, axis = 0)[0]
     y = y/np.sum(y, axis = 0)[0]
     for k in range(len(x)):
-        for l in range(len(x)):
+        for l in range(len(y)):
             if amino_acids[k] == "-" or amino_acids[l] == "-":
                 score = sigma
             else:
@@ -55,29 +62,29 @@ def fill_scoring_matrix(x, y, S, sigma, scoring_matrix):
 
 def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
     #Backtrack to find optimal local alignment
-    X_align, Y_align = "", ""  # Initialize aligned strings
     i, j = start_pos  # Start backtracking from the position of the max score
-
+    i -= 1
+    j -= 1
     # Backtrack until reaching a cell with score 0 (sigals end of local alignment)
-    xcopy = np.zeros((len(x), len(x[0])))
-    ycopy = np.zeros((len(y), len(y[0])))
+    #xcopy = np.zeros((len(x), len(x[0])))
+    #ycopy = np.zeros((len(y), len(y[0])))
+    xcopy = np.zeros((len(amino_acids), 0))
+    ycopy = np.zeros((len(amino_acids), 0))
     while i > 0 and j > 0 and S[i, j] > 0:
-        if S[i, j] == S[i-1, j-1] + calculate_match(x, y, scoring_matrix, i, j, sigma):
+        if S[i, j] == S[i-1, j-1] + calculate_match(x, y, scoring_matrix, i-1, j-1, sigma):
             # Diagonal: match/mismatch
             #X_align = x[i-1] + X_align
             #Y_align = y[j-1] + Y_align
-            xcopy[:, i] = x[:, i]
-            ycopy[:, j] = y[:, j]
+            xcopy = np.insert(xcopy, 0, x[:,i], axis=1)
+            ycopy = np.insert(ycopy, 0, y[:,j], axis=1)
             i -= 1
             j -= 1
         elif S[i, j] == S[i, j-1] - sigma:
             #Left: insertion
             ins = np.zeros(len(amino_acids))
             ins[-1] = 1
-            xcopy = np.insert(x, i - 1, ins, axis=1)
-            ycopy[:, j] = y[:, j]
-            #X_align = "-" + X_align
-            #Y_align = y[j-1] + Y_align
+            xcopy = np.insert(xcopy, 0, ins, axis=1)
+            ycopy = np.insert(ycopy, 0, y[:,j], axis=1)
             j -= 1
         else: # S[i, j] == S[i-1, j] - sigma:
             #Up: deletion
@@ -85,8 +92,10 @@ def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
             # Y_align = "-" + Y_align
             ins = np.zeros(len(amino_acids))
             ins[-1] = 1
-            xcopy[:, i] = x[:, i]
-            ycopy = np.insert(y, j - 1, ins, axis=1)
+            xcopy = np.insert(xcopy, 0, x[:,i], axis=1)
+            ycopy = np.insert(ycopy, 0, ins, axis=1)
+            # xcopy[:, i] = x[:, i]
+            # ycopy = np.insert(y, j - 1, ins, axis=1)
             i -= 1
     final = xcopy + ycopy
     return final
@@ -95,6 +104,7 @@ def backtrack(S, x, y, start_pos, sigma, scoring_matrix):
 def local_alignment(x, y, sigma=5):
     #Perform local alignment using PAM250 scoring matrix
     scoring_matrix = substitution_matrices.load("PAM250")
+    scoring_matrix = convertdict(scoring_matrix, amino_acids[:-1])
     m, n = len(x[0]), len(y[0])
 
     S = create_scoring_matrix(m, n, sigma)
@@ -103,29 +113,43 @@ def local_alignment(x, y, sigma=5):
     final = backtrack(S, x, y, max_pos, sigma, scoring_matrix)
 
 
-    return max_score, final
+    return max_score, final, x, y
 
 
-# def parse_file(filename):
-#     sequences = []
-#     with open(filename, 'r') as file:
-#         for line in file:
-#             sequence = line.strip()
-#             sequences.append(sequence)
-#     return sequences
 
 
 def pairwiseAlign(genomes):
     #Aligns each genome with all of the other genomes. Puts them in list rank and then sorts
     #based on the max score. List is returned with elements of [score, xalign, yalign]
-    rank = []
-    for i in range((len(genomes))):
-        for j in range(i+1, len(genomes)):
-          align = local_alignment(genomes[i], genomes[j], 5)
-          rank.append(align)
-    rank = sorted(rank, key=lambda x : x[0], reverse = True)
-    return rank
+    genomeprof = []
+    for seq in genomes:
+        genomeprof.append(create_profile([seq], amino_acids))
+    while len(genomeprof) > 1: 
+        rank = []    
+        for i in range((len(genomeprof))):
+            for j in range(i+1, len(genomeprof)):
+                align = local_alignment(genomeprof[i], genomeprof[j], 5)
+                rank.append(align)
+        rank = sorted(rank, key=lambda x : x[0], reverse = True)
+        x, y = rank[0][2], rank[0][3]
+        genomeprof2 = [arr for arr in genomeprof if not (arr.shape == x.shape and np.equal(x, arr).all() or arr.shape == y.shape and np.equal(y, arr).all())]
+        #genomeprof.pop(genomeprof.index(y))
+        genomeprof = genomeprof2
+        genomeprof.append(rank[0][1])
+    fin = genomeprof[0]/np.sum(genomeprof[0], axis = 0)[0]
+    max = fin.max(axis = 0)
+    string = ''
+    for i in max:
+        if i == 1:
+            string += "f"
+        elif i > 0.5:
+            string += "c"
+        else:
+            string += "-"
+    return string
 
+
+#Not sure if we still need this function? See create_profile()
 def createProfile(alignment):
     x = alignment[1]
     y = alignment[2]
@@ -136,33 +160,28 @@ def createProfile(alignment):
     
     return prof
     
-    
-
-# if __name__ == "__main__":
-#     sequences = ["MKTIIALSYIFCLV","TIIALSYIFCLVFA","ALSYIFCLVFADYK","CLVFADYKDDDDK","IFCLVFADY","SYIFCLVFA"]
-#     all_alignments = pairwiseAlign(sequences)
-#     two_seq = all_alignments[0]
-#     profile = createProfile(two_seq)
-#     print(profile)
 
 
 
 
-# if __name__ == "__main__":
-#     filename = sys.argv[1]
-#     sequences = parse_file(filename)
-#     x = sequences[0]
-#     y = sequences[1]
-#     max_score, X_align, Y_align = local_alignment(x, y)
-#     print(max_score)
-#     print(X_align)
-#     print(Y_align)
 
 
 scoring_matrix = substitution_matrices.load("PAM250")
-strings1 = ["ACGTCAG", "TCAGTCG"]
-strings2 = ["ATGCGCT", "CTGCGCT"]
-prof1 = create_profile(strings1, "ACDEFGHIKLMNPQRSTVWY-")
-prof2 = create_profile(strings2, "ACDEFGHIKLMNPQRSTVWY-")
+seq = ["MKTIIALSYIFCLVCLV","TIIALSYIFCLVCLVFA","ALSYIFCLVCLVFADYK","CLVCLVFADYKDDDDK","IFCLVCLVFADY","SYIFCLVCLVFA"]
+#seq = ["MKKIKIVPLILIVVVVGFGIYFYASKDKEINNTIDAIEDKNFKQVYKDSSYISKSDNGEVEMTERPIKIYNSLGVKDINIQDRKIKKVSKNKKRVDAQYKIKTNYGNIDRNVQFNFVKEDGMWKLDWDHSVIIPGMQKDQSIHIENLKSERGKILDRNNVELANTGTHMRLGIVPKNVSKKDYKAIAKELSISEDYINNKWIKIGYKMIPSFHFKTVKKMDEYLSDFAKKFHLTTNETESRNYPLEKATSHLLGYVGPINSEELKQKEYKGYKDDAVIGKKGLEKLYDKKLQHEDGYRVTIVDDNSNTIAHTLIEKKKKDGKDIQLTIDAKVQKSIYNNMKNDYGSGTAIHPQTGELLALVSTPSYDVYPFMYGMSNEEYNKLTEDKKEPLLNKFQITTSPGSTQKILTAMIGLNNKTLDDKTSYKIDGKGWQKDKSWGGYNVTRYEVVNGNIDLKQAIESSDNIFFARVALELGSKKFEKGMKKLGVGEDIPSDYPFYNAQISNKNLDNEILLADSGYGQGEILINPVQILSIYSALENNGNINAPHLLKDTKNKVWKKNIISKENINLLNDGMQQVVNKTHKEDIYRSYANLIGKSGTAELKMKQGESGRQIGWFISYDKDNPNMMMAINVKDVQDKGMASYNAKISGKVYDELYENGNKKYDIDE",
+#       "MAIRIFAILFSIFSLATFAHAQEGTLERSDWRKFFSEFQAKGTIVVADERQADRAMLVFDPVRSKKRYSPASTFKIPHTLFALDAGAVRDEFQIFRWDGVNRGFAGHNQDQDLRSAMRNSTVWVYELFAKEIGDDKARRYLKKIDYGNADPSTSNGDYWIEGSLAISAQEQIAFLRKLYRNELPFRVEHQRLVKDLMIVEAGRNWILRAKTGWEGRMGWWVGWVEWPTGSVFFALNIDTPNRMDDLFKREAIVRAILRSIEALPPNPAVNSDAAR",
+#       "MRNRGFGRRELLVAMAMLVSVTGCARHASGARPASTTLPAGADLADRFAELERRYDARLGVYVPATGTTAAIEYRADERFAFCSTFKAPLVAAVLHQNPLTHLDKLITYTSDDIRSISPVAQQHVQTGMTIGQLCDAAIRYSDGTAANLLLADLGGPGGGTAAFTGYLRSLGDTVSRLDAEEPELNRDPPGDERDTTTPHAIALVLQQLVLGNALPPDKRALLTDWMARNTTGAKRIRAGFPADWKVIDKTGTGDYGRANDIAVVWSPTGVPYVVAVMSDRAGGGYDAEPREALLAEAATCVAGVLA"]
+# strings1 = ["ACGTCAG", "TCAGTCG"]
+# strings2 = ["ATGCGCT", "CTGCGCT"]
+# strings3 = [""]
+# prof1 = create_profile(strings1, "ACDEFGHIKLMNPQRSTVWY-")
+# prof2 = create_profile(strings2, "ACDEFGHIKLMNPQRSTVWY-")
 
-#print(calculate_match(prof1, prof2, scoring_matrix, 0, 0, 5))
+
+print(pairwiseAlign(seq))
+#print({scoring_matrix})
+
+
+
+#print(convertdict(scoring_matrix, amino_acids[:-1]))
+
