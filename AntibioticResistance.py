@@ -180,18 +180,23 @@ def convertprof(filename):
         prof = np.loadtxt(file)
     fin = prof/np.sum(prof, axis = 0)[0]
     max = fin.max(axis = 0)
+    idx = np.argmax(prof, axis = 0)
     string = ''
     seq = ''
-    for i in max:
-        if i == 1:
+    for i in range(len(max)):
+        if max[i] == 1:
             string += "f"
-        elif i >= 0.75:
+            seq += amino_acids[idx[i]]
+        elif max[i] >= 0.75:
             string += "v"
-        elif i >= 0.5:
+            seq += amino_acids[idx[i]]
+        elif max[i] >= 0.5:
             string += "c"
+            seq += amino_acids[idx[i]]
         else:
             string += "-"
-    return string
+            seq += "-"
+    return string, seq
 
 print(convertprof("bacterial_alignment_bla2.txt"))
 
