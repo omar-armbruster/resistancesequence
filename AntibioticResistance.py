@@ -187,12 +187,12 @@ def convertprof(filename):
         if max[i] == 1:
             string += "f"
             seq += amino_acids[idx[i]]
-        elif max[i] >= 0.75:
+        elif max[i] >= 0.60:
             string += "v"
             seq += amino_acids[idx[i]]
         elif max[i] >= 0.5:
             string += "c"
-            seq += amino_acids[idx[i]]
+            seq += "-"
         else:
             string += "-"
             seq += "-"
