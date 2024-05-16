@@ -155,10 +155,10 @@ def convertprof(filename):
             seq += amino_acids[idx[i]]
         elif max[i] >= 0.5:
             string += "c"
-            seq += "-"
+            seq += amino_acids[idx[i]].lower()
         else:
             string += "-"
-            seq += "-"
+            seq += amino_acids[idx[i]].lower()
     return string, seq
 
 
@@ -195,10 +195,10 @@ muscle_prof = create_profile(muscle_aligned, amino_acids)
 
 
 
-with open("bacterial_alignment_bla5.txt", "w") as file:
-    alignment = pairwiseAlign(seq_bla)
-    for row in alignment:
-        file.write(" ".join(map(str, row)) + "\n")
+# with open("bacterial_alignment_bla5.txt", "w") as file:
+#     alignment = pairwiseAlign(seq_bla)
+#     for row in alignment:
+#         file.write(" ".join(map(str, row)) + "\n")
 
 #Compare different indel penalties.
 with open('comparesigma.txt', "w") as file:
